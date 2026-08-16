@@ -26,6 +26,6 @@ COPY --from=builder /application/application/ ./
 
 USER 1001
 
-EXPOSE 3100
+EXPOSE 8080
 
 ENTRYPOINT ["java", "org.springframework.boot.loader.launch.JarLauncher"]
