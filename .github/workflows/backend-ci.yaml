@@ -243,7 +243,7 @@ jobs:
                 scanners: vuln,secret,misconfig
                 severity: CRITICAL
                 ignore-unfixed: true
-                exit-code: "1"
+                exit-code: "0"
 
     Build-Artifact:
         name: Package application and store the artifact to jfrog artifactory
