@@ -315,7 +315,7 @@ jobs:
               run: |
                 ls -lh target/
                 file target/*.jar
-                tar -zvf -t target/*.jar
+                tar -zvf target/*.jar
             
             - name: Build image locally for scanning
               uses: docker/build-push-action@v6
