@@ -295,7 +295,7 @@ jobs:
               uses: actions/checkout@v4
               with:
                 fetch-depth: 0
-                
+
             - name: checking path
               run: ls -la
 
@@ -303,13 +303,19 @@ jobs:
               uses: actions/download-artifact@v4
               with:
                 name: backend-app-${{ github.run_id }}
-                path: spring-boot-backend-*.jar
+                path: target/spring-boot-backend-*.jar
 
             - name: Set up Docker Buildx
               uses: docker/setup-buildx-action@v3
 
             - name: checking path
               run: ls -la
+
+            - name: Inspect backend JAR
+              run: |
+                ls -lh target/
+                file target/*.jar
+                unzip -t target/*.jar
             
             - name: Build image locally for scanning
               uses: docker/build-push-action@v6
