@@ -296,9 +296,6 @@ jobs:
               with:
                 fetch-depth: 0
 
-            - name: checking path
-              run: ls -la
-
             - name: Download tested Artifact
               uses: actions/download-artifact@v4
               with:
@@ -307,15 +304,6 @@ jobs:
 
             - name: Set up Docker Buildx
               uses: docker/setup-buildx-action@v3
-
-            - name: checking path
-              run: ls -la
-
-            - name: Inspect backend JAR
-              run: |
-                ls -lh target/
-                file target/*.jar
-                tar -zvf target/*.jar
             
             - name: Build image locally for scanning
               uses: docker/build-push-action@v6
