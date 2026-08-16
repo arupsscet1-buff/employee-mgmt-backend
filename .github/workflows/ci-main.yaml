@@ -69,45 +69,135 @@ jobs:
             #     SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
             #     SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
 
+    analyze:
+      name: CodeQL Analysis
+      runs-on: ubuntu-latest
+
+      steps:
+        - name: Checkout source code
+          uses: actions/checkout@v4
+          with:
+            fetch-depth: 0
+        - name: Setup JDK
+          uses: actions/setup-java@v4
+          with:
+            distribution: temurin
+            java-version: ${{ env.JAVA_VERSION }}
+            cache: maven
+
+        - name: Initialize CodeQL
+          uses: github/codeql-action/init@v4
+          with:
+            languages: java-kotlin
+            dependency-caching: true
+
+        - name: Compile Code
+          run: mvn compile
+
+        - name: Analyze
+          uses: github/codeql-action/analyze@v4
+
+    Dependency-Check-DB:
+      name: Update and Cache OWASP Database
+      runs-on: ubuntu-latest
+
+      steps:
+        - name: Checkout source code
+          uses: actions/checkout@v4
+
+        - name: Setup Java
+          uses: actions/setup-java@v4
+          with:
+            distribution: temurin
+            java-version: '17'
+            cache: maven
+
+        - name: Generate cache key
+          id: cache-key
+          run: |
+            echo "key=dependency-check-${{ runner.os }}-$(date -u +'%Y%m%d')" >> "$GITHUB_OUTPUT"
+
+        - name: Restore existing database
+          uses: actions/cache/restore@v4
+          with:
+            path: ${{ github.workspace }}/.dependency-check
+            key: ${{ steps.cache-key.outputs.key }}
+            restore-keys: |
+              dependency-check-${{ runner.os }}-
+
+        - name: Update NVD database
+          env:
+            NVD_API_KEY: ${{ secrets.OWASP_NVD_API_KEY }}
+          run: >
+            mvn --batch-mode --no-transfer-progress
+            org.owasp:dependency-check-maven:12.2.2:update-only
+            -DnvdApiKeyEnvironmentVariable=NVD_API_KEY
+            -DdataDirectory=${{ github.workspace }}/.dependency-check
+            -DnvdApiDelay=4000
+            -DnvdMaxRetryCount=20
+
+        - name: Save database
+          uses: actions/cache/save@v4
+          with:
+            path: ${{ github.workspace }}/.dependency-check
+            key: ${{ steps.cache-key.outputs.key }}
 
     SCA-Scan:
-        name: Perform vulnerabilities scan for third party dependencies
-        runs-on: ubuntu-latest
-        needs: build-test-scan
-        if: needs.build-test-scan.result == 'success'
-        steps:
-            - name: Checkout source code
-              uses: actions/checkout@v4
-              with:
-                fetch-depth: 0
+      name: Scan Third Party Dependencies
+      runs-on: ubuntu-latest
 
-            - name: Cache Dependency-Check database
-              uses: actions/cache@v4
-              with:
-                path: ${{ github.workspace }}/.dependency-check
-                key: dependency-check-${{ runner.os }}
-                restore-keys: |
-                    dependency-check-
+      needs:
+        - build-test-scan
+        - Dependency-Check-DB
 
-            - name: OWASP Dependency-Check
-              run: >
-                mvn --batch-mode --no-transfer-progress
-                org.owasp:dependency-check-maven:12.2.2:aggregate
-                -DnvdApiKey=${{ secrets.OWASP_NVD_API_KEY }}
-                -DdataDirectory=${{ github.workspace }}/.dependency-check
-                -DfailBuildOnCVSS=50
-                -Dformats=HTML,JSON
-                -Dodc.outputDirectory=target/dependency-check
-                -DenableRetired=true
+      if: |
+        needs.build-test-scan.result == 'success' &&
+        needs.Dependency-Check-DB.result == 'success'
 
-            - name: Upload OWASP Dependency-Check report
-              if: always()
-              uses: actions/upload-artifact@v4
-              with:
-                name: owasp-dependency-check-${{ github.run_id }}
-                path: target/dependency-check/**
-                if-no-files-found: warn
-                retention-days: 14
+      steps:
+        - name: Checkout source code
+          uses: actions/checkout@v4
+
+        - name: Setup Java
+          uses: actions/setup-java@v4
+          with:
+            distribution: temurin
+            java-version: '17'
+            cache: maven
+
+        - name: Generate cache key
+          id: cache-key
+          run: |
+            echo "key=dependency-check-${{ runner.os }}-$(date -u +'%Y%m%d')" >> "$GITHUB_OUTPUT"
+
+        - name: Restore Dependency-Check database
+          uses: actions/cache/restore@v4
+          with:
+            path: ${{ github.workspace }}/.dependency-check
+            key: ${{ steps.cache-key.outputs.key }}
+            restore-keys: |
+              dependency-check-${{ runner.os }}-
+
+        - name: OWASP Dependency-Check
+          env:
+            NVD_API_KEY: ${{ secrets.OWASP_NVD_API_KEY }}
+          run: >
+            mvn --batch-mode --no-transfer-progress
+            org.owasp:dependency-check-maven:12.2.2:aggregate
+            -DnvdApiKeyEnvironmentVariable=NVD_API_KEY
+            -DdataDirectory=${{ github.workspace }}/.dependency-check
+            -DfailBuildOnCVSS=7
+            -Dformats=HTML,JSON
+            -Dodc.outputDirectory=target/dependency-check
+
+        - name: Upload OWASP report
+          if: always()
+          uses: actions/upload-artifact@v4
+          with:
+            name: owasp-dependency-check-${{ github.run_id }}
+            path: target/dependency-check/**
+            if-no-files-found: warn
+            retention-days: 14
 
     File-System-Scan:
         name: Run trivy file system scan to scan configuration misconfguration. 
@@ -132,8 +222,8 @@ jobs:
 
     Build-Artifact:
         name: Package application and store the artifact to jfrog artifactory
-        needs: [build-test-scan,SCA-Scan,File-System-Scan]
-        if: needs.build-test-scan.result=='success' && needs.SCA-Scan.result=='success' && needs.File-System-Scan.result=='success'
+        needs: [build-test-scan,analyze,SCA-Scan,File-System-Scan]
+        if: needs.build-test-scan.result=='success' && needs.analyze.result=='success' && needs.SCA-Scan.result=='success' && needs.File-System-Scan.result=='success'
         runs-on: ubuntu-latest
         steps:
             - name: Checkout source code
@@ -154,11 +244,11 @@ jobs:
 
     Build-Image-Publish:
         name: Build, Scan and Publish container Image
-        needs: [build-test-scan,File-System-Scan,SCA-Scan,Build-Artifact]
+        needs: [analyze,File-System-Scan,SCA-Scan,Build-Artifact]
         runs-on: ubuntu-latest
         if: |
           always() &&
-          needs.build-test-scan.result == 'success' &&
+          needs.analyze.result == 'success' &&
           (needs.File-System-Scan.result == 'success' && needs.SCA-Scan.result == 'success' && needs.Build-Artifact.result == 'success' ) &&
           github.event_name == 'push'
 
