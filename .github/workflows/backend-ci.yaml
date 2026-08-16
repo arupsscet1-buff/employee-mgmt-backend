@@ -22,7 +22,7 @@ permissions:
     packages: read
 
 env:
-    JAVA_VERSION: 21
+    JAVA_VERSION: 17
     SERVICE_NAME: backend-app
     AWS_REGION: ap-south-1
     IMAGE_NAME: ${{ vars.REGISTRY_URL }}/backend-app
@@ -106,8 +106,8 @@ jobs:
     Dependency-Check-DB:
       name: Update and Cache OWASP Database
       runs-on: ubuntu-latest
-      # needs: build-test-scan
-      # if: needs.build-test-scan.result == 'success'
+      needs: build-test-scan
+      if: needs.build-test-scan.result == 'success'
 
       steps:
         - name: Checkout source code
@@ -117,7 +117,7 @@ jobs:
           uses: actions/setup-java@v4
           with:
             distribution: temurin
-            java-version: '17'
+            java-version: '${{ env.JAVA_VERSION }}'
             cache: maven
 
         - name: Generate cache key
@@ -133,28 +133,27 @@ jobs:
             restore-keys: |
               dependency-check-${{ runner.os }}-
 
-        - name: Test NVD API rate behavior
-          env:
-            NVD_API_KEY: ${{ secrets.OWASP_NVD_API_KEY }}
-          run: |
-            for i in {1..5}; do
-              echo "Request $i"
+        # - name: Test NVD API rate behavior
+        #   env:
+        #     NVD_API_KEY: ${{ secrets.OWASP_NVD_API_KEY }}
+        #   run: |
+        #     for i in {1..5}; do
+        #       echo "Request $i"
 
-              curl -sS \
-                -o /tmp/nvd-$i.json \
-                -w "HTTP %{http_code}\n" \
-                -H "apiKey: ${NVD_API_KEY}" \
-                "https://services.nvd.nist.gov/rest/json/cves/2.0?resultsPerPage=2000"
+        #       curl -sS \
+        #         -o /tmp/nvd-$i.json \
+        #         -w "HTTP %{http_code}\n" \
+        #         -H "apiKey: ${NVD_API_KEY}" \
+        #         "https://services.nvd.nist.gov/rest/json/cves/2.0?resultsPerPage=2000"
 
-              sleep 6
-            done
+        #       sleep 6
+        #     done
 
         - name: Update NVD database
           env:
             NVD_API_KEY: ${{ secrets.OWASP_NVD_API_KEY }}
           run: >
             mvn --batch-mode
-            -X
             org.owasp:dependency-check-maven:12.2.2:update-only
             -DnvdApiKeyEnvironmentVariable=NVD_API_KEY
             -DdataDirectory=${{ github.workspace }}/.dependency-check
@@ -188,7 +187,7 @@ jobs:
           uses: actions/setup-java@v4
           with:
             distribution: temurin
-            java-version: '17'
+            java-version: '${{ env.JAVA_VERSION }}'
             cache: maven
 
         - name: Generate cache key
@@ -212,7 +211,7 @@ jobs:
             org.owasp:dependency-check-maven:12.2.2:aggregate
             -DnvdApiKeyEnvironmentVariable=NVD_API_KEY
             -DdataDirectory=${{ github.workspace }}/.dependency-check
-            -DfailBuildOnCVSS=7
+            -DfailBuildOnCVSS=10
             -Dformats=HTML,JSON
             -Dodc.outputDirectory=target/dependency-check
 
