@@ -5,7 +5,7 @@ FROM eclipse-temurin:17-jdk AS builder
 
 WORKDIR /application
 
-COPY target/spring-boot-backend-*.jar application.jar
+COPY spring-boot-backend-*.jar application.jar
 
 RUN java -Djarmode=layertools -jar application.jar extract
 

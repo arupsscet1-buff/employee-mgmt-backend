@@ -291,16 +291,19 @@ jobs:
               id: login-ecr
               uses: aws-actions/amazon-ecr-login@v2
 
+            - name: Checkout source code
+              uses: actions/checkout@v4
+              with:
+                fetch-depth: 0
+                
+            - name: checking path
+              run: ls -la
+
             - name: Download tested Artifact
               uses: actions/download-artifact@v4
               with:
                 name: backend-app-${{ github.run_id }}
                 path: spring-boot-backend-*.jar
-
-            - name: Checkout source code
-              uses: actions/checkout@v4
-              with:
-                fetch-depth: 0
 
             - name: Set up Docker Buildx
               uses: docker/setup-buildx-action@v3
