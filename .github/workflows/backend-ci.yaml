@@ -303,7 +303,7 @@ jobs:
               uses: actions/download-artifact@v4
               with:
                 name: backend-app-${{ github.run_id }}
-                path: target/spring-boot-backend-*.jar
+                path: target/
 
             - name: Set up Docker Buildx
               uses: docker/setup-buildx-action@v3
@@ -315,7 +315,7 @@ jobs:
               run: |
                 ls -lh target/
                 file target/*.jar
-                unzip -t target/*.jar
+                tar -zvf -t target/*.jar
             
             - name: Build image locally for scanning
               uses: docker/build-push-action@v6
