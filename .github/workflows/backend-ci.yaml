@@ -405,7 +405,7 @@ jobs:
                 git config user.email "arupsscet1@gmail.com"
 
                 git remote set-url origin \
-                  "https://arupsscet1-buff:${{ steps.getcred.outputs.token }}@github.com/arupsscet1-buff/backend-helmChart.git"
+                  "https://arupsscet1-buff:${{ steps.getcred.outputs.token }}@github.com/arupsscet1-buff/backend-helmCharts.git"
 
                 git add values.yaml Chart.yaml
 
