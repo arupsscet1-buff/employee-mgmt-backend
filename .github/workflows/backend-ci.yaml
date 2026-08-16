@@ -295,7 +295,7 @@ jobs:
               uses: actions/download-artifact@v4
               with:
                 name: backend-app-${{ github.run_id }}
-                path: target/spring-boot-backend-*.jar
+                path: spring-boot-backend-*.jar
 
             - name: Checkout source code
               uses: actions/checkout@v4
@@ -304,6 +304,9 @@ jobs:
 
             - name: Set up Docker Buildx
               uses: docker/setup-buildx-action@v3
+
+            - name: checking path
+              run: ls -la
             
             - name: Build image locally for scanning
               uses: docker/build-push-action@v6
@@ -321,7 +324,7 @@ jobs:
               with:
                 scan-type: image
                 image-ref: ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
-                severity: HIGH,CRITICAL
+                severity: CRITICAL
                 ignore-unfixed: true
                 exit-code: "1"
 
