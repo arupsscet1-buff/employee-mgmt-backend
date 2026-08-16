@@ -369,7 +369,7 @@ jobs:
             - name: Checkout source code
               uses: actions/checkout@v7
               with:
-                repository: 'arupsscet1-buff/backend-helmChart'
+                repository: 'arupsscet1-buff/backend-helmCharts'
                 fetch-depth: 0
                 persist-credentials: false
 
