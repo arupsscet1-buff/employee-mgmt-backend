@@ -73,7 +73,7 @@ jobs:
         name: Perform static application security testing
         runs-on: ubuntu-latest
         needs: build-test-scan
-        #_if: always() && needs.build-test-scan == 'success'
+        if: needs.build-test-scan.result == 'success'
         steps:
             - name: Initialize CodeQL
               uses: github/codeql-action/init@v4
@@ -94,7 +94,7 @@ jobs:
         name: Perform vulnerabilities scan for third party dependencies
         runs-on: ubuntu-latest
         needs: build-test-scan
-        if: always() && needs.build-test-scan == 'success'
+        if: needs.build-test-scan.result == 'success'
         steps:
             - name: Checkout source code
               uses: actions/checkout@v4
@@ -133,7 +133,7 @@ jobs:
         name: Run trivy file system scan to scan configuration misconfguration. 
         needs: build-test-scan
         runs-on: ubuntu-latest
-        if: always() && needs.build-test-scan == 'success'
+        if: needs.build-test-scan.result == 'success'
         steps:
             - name: Checkout source code
               uses: actions/checkout@v4
@@ -153,7 +153,7 @@ jobs:
     Build-Artifact:
         name: Package application and store the artifact to jfrog artifactory
         needs: [build-test-scan,SCA-Scan,File-System-Scan]
-        if: needs.build-test-scan=='success' && needs.SCA-Scan=='success' && needs.File-System-Scan=='success'
+        if: needs.build-test-scan.result=='success' && needs.SCA-Scan.result=='success' && needs.File-System-Scan.result=='success'
         runs-on: ubuntu-latest
         steps:
             - name: Checkout source code
