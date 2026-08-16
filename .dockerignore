@@ -1,0 +1,12 @@
+# Git
+.git
+.github
+.gitattributes
+
+# Documentation
+docs
+README.md
+CONTRIBUTING.md
+LICENSE
+.env
+
