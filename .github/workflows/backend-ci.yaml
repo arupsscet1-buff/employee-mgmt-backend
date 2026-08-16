@@ -106,8 +106,6 @@ jobs:
     Dependency-Check-DB:
       name: Update and Cache OWASP Database
       runs-on: ubuntu-latest
-      needs: build-test-scan
-      if: needs.build-test-scan.result == 'success'
 
       steps:
         - name: Checkout source code
@@ -125,13 +123,30 @@ jobs:
           run: |
             echo "key=dependency-check-${{ runner.os }}-$(date -u +'%Y%m%d')" >> "$GITHUB_OUTPUT"
 
-        - name: Restore existing database
+        - name: Restore existing Dependency-Check database
           uses: actions/cache/restore@v4
           with:
             path: ${{ github.workspace }}/.dependency-check
             key: ${{ steps.cache-key.outputs.key }}
             restore-keys: |
               dependency-check-${{ runner.os }}-
+
+        - name: Test NVD API connectivity
+          env:
+            NVD_API_KEY: ${{ secrets.OWASP_NVD_API_KEY }}
+          run: |
+            HTTP_CODE=$(curl -sS \
+              -o /tmp/nvd-response.json \
+              -w "%{http_code}" \
+              -H "apiKey: ${NVD_API_KEY}" \
+              "https://services.nvd.nist.gov/rest/json/cves/2.0?resultsPerPage=1")
+
+            echo "NVD HTTP status: $HTTP_CODE"
+
+            if [ "$HTTP_CODE" != "200" ]; then
+              cat /tmp/nvd-response.json
+              exit 1
+            fi
 
         - name: Update NVD database
           env:
@@ -141,10 +156,10 @@ jobs:
             org.owasp:dependency-check-maven:12.2.2:update-only
             -DnvdApiKeyEnvironmentVariable=NVD_API_KEY
             -DdataDirectory=${{ github.workspace }}/.dependency-check
-            -DnvdApiDelay=4000
-            -DnvdMaxRetryCount=20
+            -DnvdApiDelay=6000
+            -DnvdMaxRetryCount=10
 
-        - name: Save database
+        - name: Save Dependency-Check database
           uses: actions/cache/save@v4
           with:
             path: ${{ github.workspace }}/.dependency-check
